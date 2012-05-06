@@ -1,13 +1,23 @@
+# Next steps:
+# X 1. Implement game-over evaluation func
+# 2. Alpha-beta search
+# 3. Starting screen - choose player
+# 4. Double jumps
+# 5. Difficulty levels (depth-limit)
+
 import random
 
 BOARD_SIZE = 8
 NUM_PLAYERS = 12
+# the players array extends to many other arrays in the program
+# in these arrays, 0 will refer to black and 1 to white
 PLAYERS = ["Black", "White"]
 
 class Game:
     def __init__(self, player=0):
         self.board = Board()
-        self.captured = [0,0]
+        # refers to how many pieces that play
+        self.remaining = [NUM_PLAYERS, NUM_PLAYERS]
         # default player is black
         self.player = player
         self.turn = 0
@@ -17,40 +27,98 @@ class Game:
             print("Current Player: "+PLAYERS[self.turn])
             if (self.turn == self.player):
                 # get player's move
-                move = self.getMove()
-                self.makeMove(move) 
+                legal = self.board.calcLegalMoves(self.turn)
+                if (len(legal) > 0):
+                    choice = random.randint(0,len(legal)-1)
+                    move = legal[choice]
+             #       move = self.getMove(legal)
+                    self.makeMove(move)
+                else:
+                    print("No legal moves available, skipping turn...")
             else:
                 legal = self.board.calcLegalMoves(self.turn)
-                choice = random.randint(0,len(legal)-1)
-                self.makeMove(legal[choice])
-                print("Computer chooses ("+str(legal[choice].start)+", "+str(legal[choice].end)+")")
+                print("Valid Moves: ")
+                for i in range(len(legal)):
+                    print(str(i+1)+": ",end='')
+                    print(str(legal[i].start)+" "+str(legal[i].end))
+                if (len(legal)>0):
+                    choice = random.randint(0,len(legal)-1)
+                    self.makeMove(legal[choice])
+                    print("Computer chooses ("+str(legal[choice].start)+", "+str(legal[choice].end)+")")
             # switch player after move
             self.turn = 1-self.turn
-    def makeMove(self, move):
-        # I'm going to need to modify this later to remove pieces on jumps
-        # for now it just moves a piece
+        print("Game OVER")
+        print("Black Captured: "+str(NUM_PLAYERS-self.remaining[1]))
+        print("White Captured: "+str(NUM_PLAYERS-self.remaining[0]))
+        score = self.calcScore(self.board)
+        print("Black Score: "+str(score[0]))
+        print("White Score: "+str(score[1]))
+        if (score[0] > score[1]):
+              print("Black wins!")
+        elif (score[1] > score[0]):
+              print("White wins!")
+        else:
+            print("It's a tie!")
+        self.board.drawBoardState()
 
-        self.board.boardMove(move, self.turn)        
+    def makeMove(self, move):
+
+        self.board.boardMove(move, self.turn)
+        if move.jump:
+            # decrement removed pieces after jump
+            self.remaining[1-self.turn] -= len(move.jumpOver)
+            print("Removed "+str(len(move.jumpOver))+" "+PLAYERS[1-self.turn]+" pieces")
   
-    def getMove(self):
-        legal = self.board.calcLegalMoves(self.turn)
+    def getMove(self, legal):
         move = -1
+        # repeats until player picks move on the list
         while move not in range(len(legal)):
             # List valid moves:
             print("Valid Moves: ")
             for i in range(len(legal)):
                 print(str(i+1)+": ",end='')
                 print(str(legal[i].start)+" "+str(legal[i].end))
-            move = int(input("Pick a move: "))-1
+            usr_input = input("Pick a move: ")
+            # stops error caused when user inputs nothing
+            move = -1 if (usr_input == '')  else (int(usr_input)-1)
             if move not in range(len(legal)):
                 print("Illegal move")
         print("Legal move")
-        return (legal[move])         
+        return (legal[move])
+    # returns a boolean value determining if game finished
     def gameOver(self):
-        if (NUM_PLAYERS == self.captured[0] or NUM_PLAYERS == self.captured[1]):
+        # all pieces from one side captured
+        if (self.remaining[1] == 0 or self.remaining[0] == 0):
+            return True
+        # no legal moves available, stalemate
+        elif (len(self.board.calcLegalMoves(0)) == 0 and len(self.board.calcLegalMoves(1)) == 0):
             return True
         else:
+            # continue onwards
             return False
+    #calculates the final score for the board
+    def calcScore(self, board):
+        score = [0,0]
+        # black pieces
+        for cell in range(len(board.currPos[0])):
+            # black pieces at end of board - 2 pts
+            if (board.currPos[0][cell][0] == 0):
+                score[0] += 2
+            # black pieces not at end - 1 pt
+            else:
+                score[0] += 1
+        # white pieces
+        for cell in range(len(board.currPos[1])):
+            # white pieces at end of board - 2 pts
+            if (board.currPos[1][cell][0] == BOARD_SIZE-1):
+                score[1] += 2
+            # white pieces not at end - 1 pt
+            else:
+                score[1] += 1
+        return score
+
+        
+        
 
 class Move:
     def __init__(self, start, end, jump=False):
@@ -97,6 +165,7 @@ class Board:
         else:
             self.currPos[currPlayer].remove((move[0][0], move[0][1]))
             self.currPos[currPlayer].append((move[1][0], move[1][1]))
+  #      print(self.currPos[currPlayer])
 
     def calcLegalMoves(self, player): # int array  -> [0] reg, [1] jump
         legalMoves = []
@@ -107,7 +176,7 @@ class Board:
         # cell refers to a position tuple (row, col)
         for cell in self.currPos[player]:
             if (cell[0] == boardLimit):
-                break
+                continue
             # diagonal right, only search if not at right edge of board
             if (cell[1]!=BOARD_SIZE-1):
                 #empty, regular move
@@ -139,37 +208,14 @@ class Board:
                         
         return legalMoves
 
-    def NewcalcLegalMoves(self, player):
-        legalMoves = [] 
-        # next goes up if black or down if white
-        next = -1 if player == 0 else 1
-        boardLimit = 0 if player == 0 else 7
-        for cell in self.currPos[player]:
-            if (cell[0] == boardLimit):
-                break
-            # diagonal right, only search if not at right edge of board
-            if (cell[1]!=BOARD_SIZE-1):
-                if (self.boardState[cell[0]+next][cell[1]+1]==-1):
-                    legalMoves[0].append([[(cell[0],cell[1]),(cell[0]+next,cell[1]+1)]])
-                elif(self.boardState[cell[0]+next][cell[1]+1]==1-player):
-                    jumps = self.checkJump((cell[0],cell[1]), False, player)
-                    if (len(jumps)!=0):
-                        print(legalMoves[1])
-            # diagonal left, only search if not at left edge of board
-            if (cell[1]!=0):
-                if(self.boardState[cell[0]+next][cell[1]-1]==-1):
-                    legalMoves[0].append([[(cell[0],cell[1]),(cell[0]+next,cell[1]-1)]])
-                elif(self.boardState[cell[0]+next][cell[1]-1]==1-player):
-                    jumps = self.checkJump((cell[0],cell[1]), True, player)
-                    if (len(jumps)!=0):
-                        legalMoves[1].extend(jumps)
-        return legalMoves
-
     # enemy is the square we plan to jump over
     # change later to deal with double jumps
     def checkJump(self, cell, isLeft, player):
         jumps = []
-        next = -1 if player == 0 else 1                
+        next = -1 if player == 0 else 1
+        # check boundaries!
+        if (cell[0]+next == 0 or cell[0]+next == BOARD_SIZE-1):
+            return jumps
         #check top left
         if (isLeft):
             if (cell[1]>1 and self.boardState[cell[0]+next+next][cell[1]-2]==-1):
@@ -183,9 +229,10 @@ class Board:
                 temp = Move(cell, (cell[0]+next+next, cell[1]+2), True)
                 temp.jumpOver = [(cell[0]+next,cell[1]+1)]
                 jumps.append(temp)                
-        print("Jumps:")
-        for mov in jumps:
-            print(str(mov.start)+" "+str(mov.end)+" Jump over: "+str(mov.jumpOver))
+    # uncomment this when its time to try double jumps
+    #    print("Jumps:")
+    #    for mov in jumps:
+    #        print(str(mov.start)+" "+str(mov.end)+" Jump over: "+str(mov.jumpOver))
         return jumps
     
     def calcPos(self, player):
@@ -224,6 +271,7 @@ class Board:
             [-1,0,-1,0,-1,0,-1,0],
             [0,-1,0,-1,0,-1,0,-1]
         ]
+
 
 
 def main():
