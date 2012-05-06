@@ -6,6 +6,7 @@
 # 5. Difficulty levels (depth-limit)
 
 import random
+from copy import deepcopy
 
 BOARD_SIZE = 8
 NUM_PLAYERS = 12
@@ -29,9 +30,9 @@ class Game:
                 # get player's move
                 legal = self.board.calcLegalMoves(self.turn)
                 if (len(legal) > 0):
-                    choice = random.randint(0,len(legal)-1)
-                    move = legal[choice]
-             #       move = self.getMove(legal)
+            #        choice = random.randint(0,len(legal)-1)
+            #        move = legal[choice]
+                    move = self.getMove(legal)
                     self.makeMove(move)
                 else:
                     print("No legal moves available, skipping turn...")
@@ -42,9 +43,17 @@ class Game:
                     print(str(i+1)+": ",end='')
                     print(str(legal[i].start)+" "+str(legal[i].end))
                 if (len(legal)>0):
-                    choice = random.randint(0,len(legal)-1)
-                    self.makeMove(legal[choice])
-                    print("Computer chooses ("+str(legal[choice].start)+", "+str(legal[choice].end)+")")
+                    # no need for AI if there's only one choice!
+                    if (len(legal)==1):
+                        choice = legal[0]
+                    else:
+                        state = AB_State(self.board, self.turn)
+                        choice = self.alpha_beta(state)
+             #       print(legal)
+             #       print([choice.start, choice.end])
+             #       choice = random.randint(0,len(legal)-1)
+                    self.makeMove(choice)
+                    print("Computer chooses ("+str(choice.start)+", "+str(choice.end)+")")
             # switch player after move
             self.turn = 1-self.turn
         print("Game OVER")
@@ -117,7 +126,94 @@ class Game:
                 score[1] += 1
         return score
         
+    # state = board, player
+    # v = [move_value, move]
+    def alpha_beta(self, state):
+        result = self.max_value(state, -999, 999, 0)
+        return result[1]
+   
+   # returns max value and action associated with value
+    def max_value(self, state, alpha, beta, node):
+      # if terminalTest(state)
+      actions = state.board.calcLegalMoves(state.player)
+      num_act = len(actions)
+      if (len(actions)==0):
+         # return Utility(state)
+         score = self.calcScore(state.board)
+         state.board.drawBoardState()
+         print(score)
+         print("Node: "+str(node)+" ("+PLAYERS[state.player]+")")         
+         print("[max] Terminal Score: "+str(score[state.player]))
+         return [score[state.player], None]
+      # v <- -inf
+      v = [-999, None]
+      actions = state.board.calcLegalMoves(state.player)
+      print("Node "+str(node)+" actions: "+str(len(actions)))
+      if (len(actions) == 0):
+          print(state.board.currPos)
+   #       state.board.drawBoardState()
+      for a in actions:
+   #      print("Node: "+str(node)+" ("+PLAYERS[state.player]+")")
+         newState = AB_State(deepcopy(state.board), 1-state.player)
+         # need to test this, might need to use newState.player
+         # RESULT(s,a)
+         newState.board.boardMove(a, state.player)
+         new_v = [self.min_value(newState, alpha, beta, node+1), a]
+         # v <- Max(v, MIN_VALUE(RESULT(s,a), alpha, beta))
+         if (new_v[0] > v[0]):
+            v = new_v
+         if (v[0] >= beta):
+            print("Beta cuttoff at node "+str(node))
+            return v
+         if (v[0] > alpha):
+            print("New Alpha:",end=' ')
+            alpha = v[0]
+            print("Alpha: "+str(alpha))
+      return v
 
+   # returns min value
+    def min_value(self, state, alpha, beta, node):
+      #if terminalTest(state)
+      actions = state.board.calcLegalMoves(state.player)
+      num_act = len(actions)
+      if (len(actions)==0):
+         # return Utility(state)
+       #  state.board.drawBoardState()
+         score = self.calcScore(state.board)
+         print("Node: "+str(node)+" ("+PLAYERS[state.player]+")")                  
+         print("[min] Terminal Score: "+str(score[state.player]))
+         return score[state.player]
+      # v <- inf
+      v = 999
+      print("Node "+str(node)+" actions: "+str(len(actions)))      
+      for a in actions:
+   #      print("Node: "+str(node)+" ("+PLAYERS[state.player]+")")
+         newState = AB_State(deepcopy(state.board), 1-state.player)
+         # need to test this, might need to use newState.player
+         # RESULT(s,a)
+         newState.board.boardMove(a, state.player)
+         new_v = self.max_value(newState, alpha, beta, node+1)
+         new_v = new_v[0]
+         # v <- Min(v, MAX_VALUE(RESULT(s,a), alpha, beta))
+         if (new_v < v):
+            v = new_v
+         if (v <= alpha):
+            print("Alpha cuttoff at node "+str(node))             
+            return v
+         if (v < beta):
+            beta = v
+            print("Beta: "+str(beta))
+      return v
+            
+         
+         
+
+# wrapper for state used in alpha-beta
+class AB_State:
+   def __init__(self, boardState, currPlayer):
+      self.board = boardState
+      self.player = currPlayer
+      
 class Move:
     def __init__(self, start, end, jump=False):
             self.start = start
@@ -144,8 +240,10 @@ class Board:
             self.currPos[1] = self.calcPos(1)            
     def boardMove(self, move_info, currPlayer):
         move = [move_info.start, move_info.end]
+  #      print(move)
+  #      self.drawBoardState()
         remove = move_info.jumpOver
-        jump = move_info.jump
+        jump = move_info.jump      
         # start by making old space empty
         self.boardState[move[0][0]][move[0][1]] = -1
         # then set the new space to player who moved
@@ -256,21 +354,33 @@ class Board:
                     print("B ",end='')
             print(str(row))
 
+##    def setDefaultBoard(self):
+##        # reset board
+##        # -1 = empty, 0=black, 1=white
+##        self.boardState = [
+##            [-1,1,-1,1,-1,1,-1,1],
+##            [1,-1,1,-1,1,-1,1,-1],
+##            [-1,1,-1,1,-1,1,-1,1],
+##            [-1,-1,-1,-1,-1,-1,-1,-1],
+##            [-1,-1,-1,-1,-1,-1,-1,-1],
+##            [0,-1,0,-1,0,-1,0,-1],
+##            [-1,0,-1,0,-1,0,-1,0],
+##            [0,-1,0,-1,0,-1,0,-1]
+##        ]
+
     def setDefaultBoard(self):
         # reset board
         # -1 = empty, 0=black, 1=white
         self.boardState = [
-            [-1,1,-1,1,-1,1,-1,1],
-            [1,-1,1,-1,1,-1,1,-1],
-            [-1,1,-1,1,-1,1,-1,1],
+            [-1,1,-1,-1,-1,-1,-1,-1],
+            [-1,-1,1,-1,1,-1,-1,-1],
+            [-1,-1,-1,-1,-1,-1,-1,-1],
+            [0,-1,0,-1,1,-1,-1,-1],
+            [-1,0,-1,-1,-1,-1,-1,-1],
             [-1,-1,-1,-1,-1,-1,-1,-1],
             [-1,-1,-1,-1,-1,-1,-1,-1],
-            [0,-1,0,-1,0,-1,0,-1],
-            [-1,0,-1,0,-1,0,-1,0],
-            [0,-1,0,-1,0,-1,0,-1]
-        ]
-
-
+            [-1,-1,-1,-1,-1,-1,-1,-1]
+        ]            
 
 def main():
     test = Game()
