@@ -88,7 +88,7 @@ class Game:
     # returns a boolean value determining if game finished
     def gameOver(self):
         # all pieces from one side captured
-        if (self.remaining[1] == 0 or self.remaining[0] == 0):
+        if (len(self.board.currPos[0]) == 0 or len(self.board.currPos[1]) == 0):
             return True
         # no legal moves available, stalemate
         elif (len(self.board.calcLegalMoves(0)) == 0 and len(self.board.calcLegalMoves(1)) == 0):
