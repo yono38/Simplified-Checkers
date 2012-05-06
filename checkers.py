@@ -22,7 +22,7 @@ class Game:
         self.player = player
         self.turn = 0
     def run(self):
-        while not (self.gameOver()):
+        while not (self.gameOver(self.board)):
             self.board.drawBoardState()
             print("Current Player: "+PLAYERS[self.turn])
             if (self.turn == self.player):
@@ -86,12 +86,12 @@ class Game:
         print("Legal move")
         return (legal[move])
     # returns a boolean value determining if game finished
-    def gameOver(self):
+    def gameOver(self, board):
         # all pieces from one side captured
-        if (len(self.board.currPos[0]) == 0 or len(self.board.currPos[1]) == 0):
+        if (len(board.currPos[0]) == 0 or len(board.currPos[1]) == 0):
             return True
         # no legal moves available, stalemate
-        elif (len(self.board.calcLegalMoves(0)) == 0 and len(self.board.calcLegalMoves(1)) == 0):
+        elif (len(board.calcLegalMoves(0)) == 0 and len(board.calcLegalMoves(1)) == 0):
             return True
         else:
             # continue onwards
@@ -116,8 +116,6 @@ class Game:
             else:
                 score[1] += 1
         return score
-
-        
         
 
 class Move:
