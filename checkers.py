@@ -1,9 +1,10 @@
 # Next steps:
 # X 1. Implement game-over evaluation func
-# 2. Alpha-beta search
-# 3. Starting screen - choose player
-# 4. Double jumps
-# 5. Difficulty levels (depth-limit)
+# X 2. Alpha-beta search
+# X 3. Alpha-beta info
+# 4. Starting screen - choose player
+# 5. Double jumps
+# 6. Difficulty levels (depth-limit)
 
 import random
 from copy import deepcopy
@@ -127,48 +128,47 @@ class Game:
         return score
         
     # state = board, player
-    # v = [move_value, move]
     def alpha_beta(self, state):
         result = self.max_value(state, -999, 999, 0)
-        return result[1]
+        print("Total nodes generated: "+str(result.nodes))
+        print("Max depth: "+str(result.max_depth))
+        print("Max Val Cutoffs: "+str(result.max_cutoff))
+        print("Min Val Cutoffs: "+str(result.min_cutoff))
+        return result.move
    
    # returns max value and action associated with value
     def max_value(self, state, alpha, beta, node):
       # if terminalTest(state)
       actions = state.board.calcLegalMoves(state.player)
       num_act = len(actions)
+      # v <- -inf
+      # self, move_value, move, max_depth, total_nodes, max_cutoff, min_cutoff
+      v = AB_Value(-999, None, node, 1, 0, 0)
       if (len(actions)==0):
          # return Utility(state)
          score = self.calcScore(state.board)
-         state.board.drawBoardState()
-         print(score)
-         print("Node: "+str(node)+" ("+PLAYERS[state.player]+")")         
-         print("[max] Terminal Score: "+str(score[state.player]))
-         return [score[state.player], None]
-      # v <- -inf
-      v = [-999, None]
-      actions = state.board.calcLegalMoves(state.player)
-      print("Node "+str(node)+" actions: "+str(len(actions)))
-      if (len(actions) == 0):
-          print(state.board.currPos)
-   #       state.board.drawBoardState()
+         v.move_value = score[state.player]
+         return v
       for a in actions:
-   #      print("Node: "+str(node)+" ("+PLAYERS[state.player]+")")
          newState = AB_State(deepcopy(state.board), 1-state.player)
-         # need to test this, might need to use newState.player
          # RESULT(s,a)
          newState.board.boardMove(a, state.player)
-         new_v = [self.min_value(newState, alpha, beta, node+1), a]
+         new_v = self.min_value(newState, alpha, beta, node+1)
+         # compute new values for nodes and cutoffs in recursion
+         if (new_v.max_depth > v.max_depth):
+             v.max_depth = new_v.max_depth         
+         v.nodes += new_v.nodes
+         v.max_cutoff += new_v.max_cutoff
+         v.min_cutoff += new_v.min_cutoff
          # v <- Max(v, MIN_VALUE(RESULT(s,a), alpha, beta))
-         if (new_v[0] > v[0]):
-            v = new_v
-         if (v[0] >= beta):
-            print("Beta cuttoff at node "+str(node))
+         if (new_v.move_value > v.move_value):
+            v.move_value = new_v.move_value
+            v.move = a
+         if (v.move_value >= beta):
+            v.max_cutoff += 1
             return v
-         if (v[0] > alpha):
-            print("New Alpha:",end=' ')
-            alpha = v[0]
-            print("Alpha: "+str(alpha))
+         if (v.move_value > alpha):
+            alpha = v.move_value
       return v
 
    # returns min value
@@ -176,36 +176,46 @@ class Game:
       #if terminalTest(state)
       actions = state.board.calcLegalMoves(state.player)
       num_act = len(actions)
+      # v <- inf
+      # self, move_value, move, max_depth, total_nodes, max_cutoff, min_cutoff
+      v = AB_Value(999, None, node, 1, 0, 0)      
       if (len(actions)==0):
          # return Utility(state)
-       #  state.board.drawBoardState()
          score = self.calcScore(state.board)
-         print("Node: "+str(node)+" ("+PLAYERS[state.player]+")")                  
-         print("[min] Terminal Score: "+str(score[state.player]))
-         return score[state.player]
-      # v <- inf
-      v = 999
-      print("Node "+str(node)+" actions: "+str(len(actions)))      
+         v.move_value = score[state.player]
+         return v     
       for a in actions:
-   #      print("Node: "+str(node)+" ("+PLAYERS[state.player]+")")
          newState = AB_State(deepcopy(state.board), 1-state.player)
-         # need to test this, might need to use newState.player
          # RESULT(s,a)
          newState.board.boardMove(a, state.player)
          new_v = self.max_value(newState, alpha, beta, node+1)
-         new_v = new_v[0]
+         # compute new values for nodes and cutoffs in recursion
+         if (new_v.max_depth > v.max_depth):
+             v.max_depth = new_v.max_depth
+         v.nodes += new_v.nodes
+         v.max_cutoff += new_v.max_cutoff
+         v.min_cutoff += new_v.min_cutoff
          # v <- Min(v, MAX_VALUE(RESULT(s,a), alpha, beta))
-         if (new_v < v):
-            v = new_v
-         if (v <= alpha):
-            print("Alpha cuttoff at node "+str(node))             
+         if (new_v.move_value < v.move_value):
+            v.move_value = new_v.move_value
+            v.move = a
+         if (v.move_value <= alpha):
+            v.min_cutoff += 1
             return v
-         if (v < beta):
-            beta = v
-            print("Beta: "+str(beta))
+         if (v.move_value < beta):
+            beta = v.move_value
       return v
             
-         
+# wrapper for alpha-beta info
+# v = [move_value, move, max tree depth, # child nodes, # max/beta cutoff, # min/alpha cutoff]
+class AB_Value:
+    def __init__(self, move_value, move, max_depth, child_nodes, max_cutoff, min_cutoff):
+        self.move_value = move_value
+        self.move = move
+        self.max_depth = max_depth
+        self.nodes = child_nodes
+        self.max_cutoff = max_cutoff
+        self.min_cutoff = min_cutoff
          
 
 # wrapper for state used in alpha-beta
