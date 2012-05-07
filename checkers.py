@@ -56,7 +56,6 @@ class Game:
              #       choice = random.randint(0,len(legal)-1)
                     self.makeMove(choice)
                     print("Computer chooses ("+str(choice.start)+", "+str(choice.end)+")")
-                    eval = self.evaluation_function(self.board, self.turn)
             # switch player after move
             self.turn = 1-self.turn
         print("Game OVER")
@@ -97,6 +96,7 @@ class Game:
                 print("Illegal move")
         print("Legal move")
         return (legal[move])
+        
     # returns a boolean value determining if game finished
     def gameOver(self, board):
         # all pieces from one side captured
@@ -108,6 +108,7 @@ class Game:
         else:
             # continue onwards
             return False
+            
     #calculates the final score for the board
     def calcScore(self, board):
         score = [0,0]
@@ -230,42 +231,6 @@ class Game:
     # returns a utility value for a non-terminal node
     # f(x) = 5(player piece in end)+3(player not in end)-7(opp in end)-3(opp not in end)
     def evaluation_function(self, board, currPlayer):
-        far_end = 0 if currPlayer == 1 else BOARD_SIZE-1
-        p_end = range(0, int(BOARD_SIZE/2-1)) if currPlayer == 0 else range(int(BOARD_SIZE/2), BOARD_SIZE-1)
-        opp_end = range(int(BOARD_SIZE/2), BOARD_SIZE-1) if currPlayer == 0 else range(0, int(BOARD_SIZE/2)-1)
-        opp_far_end = BOARD_SIZE-1 if currPlayer == 1 else 0
-        p_far, p_plr_half, p_opp_half = 0,0,0
-        opp_far, opp_opp_half, opp_p_half = 0,0,0 
-        # player's pieces
-        for cell in range(len(board.currPos[currPlayer])):
-            # player pieces at end of board
-            if (board.currPos[currPlayer][cell][0] == far_end):
-                p_far += 1
-            # player pieces in opponents end
-            # change to "print 'yes' if 0 < x < 0.5 else 'no'"
-            elif (board.currPos[currPlayer][cell][0] in opp_end):
-                p_opp_half += 1
-            else:
-                p_plr_half += 1
-        # opponent's pieces
-        for cell in range(len(board.currPos[1-currPlayer])):
-            # opp pieces at end of board 
-            if (board.currPos[1-currPlayer][cell][0] == opp_far_end):
-                opp_far += 1
-            # opp pieces not at own end
-            elif (board.currPos[currPlayer][cell][0] in opp_end):
-                opp_opp_half += 1
-            else:
-                opp_p_half += 1                 
-        return ( (7 * p_far) + (5 * p_opp_half)+ (3 * p_plr_half) + (-7 * opp_far_end) + (-5*opp_p_half) + (-3*opp_opp_half))
-
-    # returns a utility value for a non-terminal node
-    # f(x) = 5(player piece in end)+3(player not in end)-7(opp in end)-3(opp not in end)
-    def evaluation_function(self, board, currPlayer):
-
-       # p_end = range(0, int(BOARD_SIZE/2-1)) if currPlayer == 0 else range(int(BOARD_SIZE/2), BOARD_SIZE-1)
-       # opp_end = range(int(BOARD_SIZE/2), BOARD_SIZE-1) if currPlayer == 0 else range(0, int(BOARD_SIZE/2)-1)
-       # opp_far_end = BOARD_SIZE-1 if currPlayer == 1 else 0
         blk_far, blk_home_half, blk_opp_half = 0,0,0
         wt_far, wt_home_half, wt_opp_half = 0,0,0 
         # black's pieces
@@ -294,7 +259,8 @@ class Game:
         if (currPlayer == 0):
             return (black_score - white_score)
         else:
-            return (white_score - black_score)            
+            return (white_score - black_score)       
+                 
 # wrapper for alpha-beta info
 # v = [move_value, move, max tree depth, # child nodes, # max/beta cutoff, # min/alpha cutoff]
 class AB_Value:
@@ -319,8 +285,6 @@ class Move:
             self.end = end # tuple (row, col)
             self.jump = jump # bool
             self.jumpOver = [] # array of pieces jumped over
-#            self.player = player
-        
     
 class Board:
     def __init__(self, board=[], currBlack=[], currWhite=[]):
@@ -436,8 +400,7 @@ class Board:
                 if (self.boardState[row][col]==player):
                     pos.append((row,col))
         return pos
-    
-     
+         
     def drawBoardState(self):
         for colnum in range(BOARD_SIZE):
             print(str(colnum)+" ",end="")
@@ -484,5 +447,5 @@ class Board:
 def main():
     test = Game()
     test.run()
-  #  test.drawBoardState()
+    
 main()
