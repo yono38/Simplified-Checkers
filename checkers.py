@@ -11,6 +11,7 @@ from copy import deepcopy
 
 BOARD_SIZE = 8
 NUM_PLAYERS = 12
+DEPTH_LIMIT = 5
 # the players array extends to many other arrays in the program
 # in these arrays, 0 will refer to black and 1 to white
 PLAYERS = ["Black", "White"]
@@ -55,6 +56,7 @@ class Game:
              #       choice = random.randint(0,len(legal)-1)
                     self.makeMove(choice)
                     print("Computer chooses ("+str(choice.start)+", "+str(choice.end)+")")
+                    eval = self.evaluation_function(self.board, self.turn)
             # switch player after move
             self.turn = 1-self.turn
         print("Game OVER")
@@ -144,13 +146,20 @@ class Game:
       # v <- -inf
       # self, move_value, move, max_depth, total_nodes, max_cutoff, min_cutoff
       v = AB_Value(-999, None, node, 1, 0, 0)
+      
       if (len(actions)==0):
          # return Utility(state)
          score = self.calcScore(state.board)
-         v.move_value = score[state.player]
+         if (score[state.player] > score[1-state.player]):
+            v.move_value = 100 + (2*score[state.player]-score[1-state.player])
+   #         print("(max) Terminal Node Score: "+str(v.move_value))
+         else:
+            v.move_value = -100 + (2*score[state.player]-score[1-state.player])
+   #         print("(max) Terminal Node Score: "+str(v.move_value))            
          return v
       for a in actions:
          newState = AB_State(deepcopy(state.board), 1-state.player)
+         eval = self.evaluation_function(self.board, self.turn)
          # RESULT(s,a)
          newState.board.boardMove(a, state.player)
          new_v = self.min_value(newState, alpha, beta, node+1)
@@ -178,14 +187,26 @@ class Game:
       num_act = len(actions)
       # v <- inf
       # self, move_value, move, max_depth, total_nodes, max_cutoff, min_cutoff
-      v = AB_Value(999, None, node, 1, 0, 0)      
+      v = AB_Value(999, None, node, 1, 0, 0)
+      # depth cutoff
+      if (node == DEPTH_LIMIT):
+         v.move_value = self.evaluation_function(state.board, state.player)
+   #      print("Depth Cutoff. Eval value: "+str(v.move_value))
+         return v
       if (len(actions)==0):
          # return Utility(state)
          score = self.calcScore(state.board)
-         v.move_value = score[state.player]
+         if (score[state.player] > score[1-state.player]):
+            v.move_value = 100 + (2*score[state.player]-score[1-state.player])
+    #        print("(min) Terminal Node Score: "+str(v.move_value))            
+         else:
+            v.move_value = -100 + (2*score[state.player]-score[1-state.player])
+    #        print("(min) Terminal Node Score: "+str(v.move_value))
          return v     
       for a in actions:
          newState = AB_State(deepcopy(state.board), 1-state.player)
+         eval = self.evaluation_function(self.board, self.turn)
+    #     print("Current Evaluation: "+str(eval))
          # RESULT(s,a)
          newState.board.boardMove(a, state.player)
          new_v = self.max_value(newState, alpha, beta, node+1)
@@ -205,7 +226,75 @@ class Game:
          if (v.move_value < beta):
             beta = v.move_value
       return v
-            
+
+    # returns a utility value for a non-terminal node
+    # f(x) = 5(player piece in end)+3(player not in end)-7(opp in end)-3(opp not in end)
+    def evaluation_function(self, board, currPlayer):
+        far_end = 0 if currPlayer == 1 else BOARD_SIZE-1
+        p_end = range(0, int(BOARD_SIZE/2-1)) if currPlayer == 0 else range(int(BOARD_SIZE/2), BOARD_SIZE-1)
+        opp_end = range(int(BOARD_SIZE/2), BOARD_SIZE-1) if currPlayer == 0 else range(0, int(BOARD_SIZE/2)-1)
+        opp_far_end = BOARD_SIZE-1 if currPlayer == 1 else 0
+        p_far, p_plr_half, p_opp_half = 0,0,0
+        opp_far, opp_opp_half, opp_p_half = 0,0,0 
+        # player's pieces
+        for cell in range(len(board.currPos[currPlayer])):
+            # player pieces at end of board
+            if (board.currPos[currPlayer][cell][0] == far_end):
+                p_far += 1
+            # player pieces in opponents end
+            # change to "print 'yes' if 0 < x < 0.5 else 'no'"
+            elif (board.currPos[currPlayer][cell][0] in opp_end):
+                p_opp_half += 1
+            else:
+                p_plr_half += 1
+        # opponent's pieces
+        for cell in range(len(board.currPos[1-currPlayer])):
+            # opp pieces at end of board 
+            if (board.currPos[1-currPlayer][cell][0] == opp_far_end):
+                opp_far += 1
+            # opp pieces not at own end
+            elif (board.currPos[currPlayer][cell][0] in opp_end):
+                opp_opp_half += 1
+            else:
+                opp_p_half += 1                 
+        return ( (7 * p_far) + (5 * p_opp_half)+ (3 * p_plr_half) + (-7 * opp_far_end) + (-5*opp_p_half) + (-3*opp_opp_half))
+
+    # returns a utility value for a non-terminal node
+    # f(x) = 5(player piece in end)+3(player not in end)-7(opp in end)-3(opp not in end)
+    def evaluation_function(self, board, currPlayer):
+
+       # p_end = range(0, int(BOARD_SIZE/2-1)) if currPlayer == 0 else range(int(BOARD_SIZE/2), BOARD_SIZE-1)
+       # opp_end = range(int(BOARD_SIZE/2), BOARD_SIZE-1) if currPlayer == 0 else range(0, int(BOARD_SIZE/2)-1)
+       # opp_far_end = BOARD_SIZE-1 if currPlayer == 1 else 0
+        blk_far, blk_home_half, blk_opp_half = 0,0,0
+        wt_far, wt_home_half, wt_opp_half = 0,0,0 
+        # black's pieces
+        for cell in range(len(board.currPos[0])):
+            # player pieces at end of board
+            if (board.currPos[0][cell][0] == BOARD_SIZE-1):
+                blk_far += 1
+            # player pieces in opponents end
+            # change to "print 'yes' if 0 < x < 0.5 else 'no'"
+            elif (BOARD_SIZE/2 <= board.currPos[0][cell][0] < BOARD_SIZE):
+                blk_opp_half += 1
+            else:
+                blk_home_half += 1
+        # white's pieces
+        for cell in range(len(board.currPos[1])):
+            # opp pieces at end of board 
+            if (board.currPos[1][cell][0] == 0):
+                wt_far += 1
+            # opp pieces not at own end
+            elif (0 <= board.currPos[1][cell][0] < BOARD_SIZE/2):
+                wt_opp_half += 1
+            else:
+                wt_home_half += 1
+        white_score = (7 * wt_far) + (5 * wt_opp_half)+ (3 * wt_home_half)
+        black_score = (7 * blk_far) + (5 * blk_opp_half)+ (3 * blk_home_half)
+        if (currPlayer == 0):
+            return (black_score - white_score)
+        else:
+            return (white_score - black_score)            
 # wrapper for alpha-beta info
 # v = [move_value, move, max tree depth, # child nodes, # max/beta cutoff, # min/alpha cutoff]
 class AB_Value:
@@ -298,7 +387,6 @@ class Board:
                             hasJumps = True
                             legalMoves = []
                         legalMoves.extend(jumps)
-                        print(legalMoves)
             # diagonal left, only search if not at left edge of board
             if (cell[1]!=0):
                 if(self.boardState[cell[0]+next][cell[1]-1]==-1 and not hasJumps):
@@ -364,33 +452,34 @@ class Board:
                     print("B ",end='')
             print(str(row))
 
-##    def setDefaultBoard(self):
-##        # reset board
-##        # -1 = empty, 0=black, 1=white
-##        self.boardState = [
-##            [-1,1,-1,1,-1,1,-1,1],
-##            [1,-1,1,-1,1,-1,1,-1],
-##            [-1,1,-1,1,-1,1,-1,1],
-##            [-1,-1,-1,-1,-1,-1,-1,-1],
-##            [-1,-1,-1,-1,-1,-1,-1,-1],
-##            [0,-1,0,-1,0,-1,0,-1],
-##            [-1,0,-1,0,-1,0,-1,0],
-##            [0,-1,0,-1,0,-1,0,-1]
-##        ]
-
     def setDefaultBoard(self):
         # reset board
         # -1 = empty, 0=black, 1=white
         self.boardState = [
-            [-1,1,-1,-1,-1,-1,-1,-1],
-            [-1,-1,1,-1,1,-1,-1,-1],
-            [-1,-1,-1,-1,-1,-1,-1,-1],
-            [0,-1,0,-1,1,-1,-1,-1],
-            [-1,0,-1,-1,-1,-1,-1,-1],
+            [-1,1,-1,1,-1,1,-1,1],
+            [1,-1,1,-1,1,-1,1,-1],
+            [-1,1,-1,1,-1,1,-1,1],
             [-1,-1,-1,-1,-1,-1,-1,-1],
             [-1,-1,-1,-1,-1,-1,-1,-1],
-            [-1,-1,-1,-1,-1,-1,-1,-1]
-        ]            
+            [0,-1,0,-1,0,-1,0,-1],
+            [-1,0,-1,0,-1,0,-1,0],
+            [0,-1,0,-1,0,-1,0,-1]
+        ]
+
+# for testing
+##    def setDefaultBoard(self):
+##        # reset board
+##        # -1 = empty, 0=black, 1=white
+##        self.boardState = [
+##            [-1,1,-1,-1,-1,-1,-1,-1],
+##            [-1,-1,1,-1,1,-1,1,-1],
+##            [-1,-1,-1,-1,-1,1,-1,-1],
+##            [0,-1,0,-1,1,-1,-1,-1],
+##            [-1,0,-1,-1,-1,0,-1,-1],
+##            [-1,-1,-1,-1,0,-1,-1,-1],
+##            [-1,-1,-1,-1,-1,-1,0,-1],
+##            [-1,-1,-1,-1,-1,-1,-1,-1]
+##        ]            
 
 def main():
     test = Game()
