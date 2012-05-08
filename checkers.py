@@ -3,8 +3,7 @@
 # X 2. Alpha-beta search
 # X 3. Alpha-beta info
 # 4. Starting screen - choose player
-# 5. Double jumps
-# 6. Difficulty levels (depth-limit)
+# X 5. Double jumps
 
 import random
 from copy import deepcopy
@@ -51,9 +50,11 @@ class Game:
                     else:
                         state = AB_State(self.board, self.turn, self.turn)
                         choice = self.alpha_beta(state)
-             #       print(legal)
-             #       print([choice.start, choice.end])
-             #       choice = random.randint(0,len(legal)-1)
+            #        choice = random.randint(0,len(legal)-1)  
+            #        choice = legal[choice]                            
+            #        print(legal)
+            #        print([choice.start, choice.end])
+
                     self.makeMove(choice)
                     print("Computer chooses ("+str(choice.start)+", "+str(choice.end)+")")
             # switch player after move
@@ -335,7 +336,7 @@ class Board:
         hasJumps = False
         # next goes up if black or down if white
         next = -1 if player == 0 else 1
-        boardLimit = 0 if player == 0 else 7
+        boardLimit = 0 if player == 0 else BOARD_SIZE-1
         # cell refers to a position tuple (row, col)
         for cell in self.currPos[player]:
             if (cell[0] == boardLimit):
@@ -383,6 +384,24 @@ class Board:
             if (cell[1]>1 and self.boardState[cell[0]+next+next][cell[1]-2]==-1):
                 temp = Move(cell, (cell[0]+next+next, cell[1]-2), True)
                 temp.jumpOver = [(cell[0]+next,cell[1]-1)]
+                # can has double jump?
+                if (cell[0]+next != 0 and cell[0]+next != BOARD_SIZE-1):
+                	#enemy in top left of new square?
+                	if (temp.end[1]>1 and self.boardState[temp.end[0]+next][temp.end[1]-1]==(1-player)):
+                		test = self.checkJump(temp.end, True, player)
+                		if (test != []):
+                			dbl_temp = deepcopy(temp) #deepcopy needed?
+                			dbl_temp.end = test[0].end 
+                			dbl_temp.jumpOver.extend(test[0].jumpOver)
+                			jumps.append(dbl_temp)                		
+                	# top right?
+                	if (temp.end[1]<BOARD_SIZE-2 and self.boardState[temp.end[0]+next][temp.end[1]+1]==(1-player)):
+                		test = self.checkJump(temp.end, False, player)                	
+                		if (test != []):
+                			dbl_temp = deepcopy(temp) #deepcopy needed?
+                			dbl_temp.end = test[0].end 
+                			dbl_temp.jumpOver.extend(test[0].jumpOver)
+                			jumps.append(dbl_temp)                     			
                 jumps.append(temp)
         else:
         #check top right
@@ -390,11 +409,29 @@ class Board:
                 # ([original cell, new cell], enemy cell])
                 temp = Move(cell, (cell[0]+next+next, cell[1]+2), True)
                 temp.jumpOver = [(cell[0]+next,cell[1]+1)]
+                # can has double jump?
+                if (cell[0]+next != 0 and cell[0]+next != BOARD_SIZE-1):
+                	#enemy in top left of new square?
+                	if (temp.end[1]>1 and self.boardState[temp.end[0]+next][temp.end[1]-1]==(1-player)):
+                		test = self.checkJump(temp.end, True, player)
+                		if (test != []):
+                			dbl_temp = deepcopy(temp) #deepcopy needed?
+                			dbl_temp.end = test[0].end 
+                			dbl_temp.jumpOver.extend(test[0].jumpOver)
+                			jumps.append(dbl_temp)                     			
+                	# top right?
+                	if (temp.end[1]<BOARD_SIZE-2 and self.boardState[temp.end[0]+next][temp.end[1]+1]==(1-player)):
+                		test = self.checkJump(temp.end, False, player) 
+                		if (test != []):
+                			dbl_temp = deepcopy(temp) #deepcopy needed?
+                			dbl_temp.end = test[0].end 
+                			dbl_temp.jumpOver.extend(test[0].jumpOver)
+                			jumps.append(dbl_temp)                  			
                 jumps.append(temp)                
     # uncomment this when its time to try double jumps
-    #    print("Jumps:")
-    #    for mov in jumps:
-    #        print(str(mov.start)+" "+str(mov.end)+" Jump over: "+str(mov.jumpOver))
+     #   print("Jumps:")
+     #   for mov in jumps:
+     #       print(str(mov.start)+" "+str(mov.end)+" Jump over: "+str(mov.jumpOver))
         return jumps
     
     def calcPos(self, player):
@@ -433,7 +470,7 @@ class Board:
             [0,-1,0,-1,0,-1,0,-1]
         ]
 
-# for testing
+### for testing
 ##    def setDefaultBoard(self):
 ##        # reset board
 ##        # -1 = empty, 0=black, 1=white
