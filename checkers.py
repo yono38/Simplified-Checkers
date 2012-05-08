@@ -49,7 +49,7 @@ class Game:
                     if (len(legal)==1):
                         choice = legal[0]
                     else:
-                        state = AB_State(self.board, self.turn)
+                        state = AB_State(self.board, self.turn, self.turn)
                         choice = self.alpha_beta(state)
              #       print(legal)
              #       print([choice.start, choice.end])
@@ -147,20 +147,23 @@ class Game:
       # v <- -inf
       # self, move_value, move, max_depth, total_nodes, max_cutoff, min_cutoff
       v = AB_Value(-999, None, node, 1, 0, 0)
-      
+      # depth cutoff
+      if (node == DEPTH_LIMIT):
+         v.move_value = self.evaluation_function(state.board, state.origPlayer)
+   #      print("Depth Cutoff. Eval value: "+str(v.move_value))
+         return v      
       if (len(actions)==0):
          # return Utility(state)
          score = self.calcScore(state.board)
-         if (score[state.player] > score[1-state.player]):
-            v.move_value = 100 + (2*score[state.player]-score[1-state.player])
+         if (score[state.origPlayer] > score[1-state.origPlayer]):
+            v.move_value = 100 + (2*score[state.origPlayer]-score[1-state.origPlayer])
    #         print("(max) Terminal Node Score: "+str(v.move_value))
          else:
-            v.move_value = -100 + (2*score[state.player]-score[1-state.player])
+            v.move_value = -100 + (2*score[state.origPlayer]-score[1-state.origPlayer])
    #         print("(max) Terminal Node Score: "+str(v.move_value))            
          return v
       for a in actions:
-         newState = AB_State(deepcopy(state.board), 1-state.player)
-         eval = self.evaluation_function(self.board, self.turn)
+         newState = AB_State(deepcopy(state.board), 1-state.player, state.origPlayer)
          # RESULT(s,a)
          newState.board.boardMove(a, state.player)
          new_v = self.min_value(newState, alpha, beta, node+1)
@@ -197,15 +200,15 @@ class Game:
       if (len(actions)==0):
          # return Utility(state)
          score = self.calcScore(state.board)
-         if (score[state.player] > score[1-state.player]):
-            v.move_value = 100 + (2*score[state.player]-score[1-state.player])
+         if (score[state.origPlayer] > score[1-state.origPlayer]):
+            v.move_value = 100 + (2*score[state.origPlayer]-score[1-state.origPlayer])
     #        print("(min) Terminal Node Score: "+str(v.move_value))            
          else:
-            v.move_value = -100 + (2*score[state.player]-score[1-state.player])
+            v.move_value = -100 + (2*score[state.origPlayer]-score[1-state.origPlayer])
     #        print("(min) Terminal Node Score: "+str(v.move_value))
          return v     
       for a in actions:
-         newState = AB_State(deepcopy(state.board), 1-state.player)
+         newState = AB_State(deepcopy(state.board), 1-state.player, state.origPlayer)
          eval = self.evaluation_function(self.board, self.turn)
     #     print("Current Evaluation: "+str(eval))
          # RESULT(s,a)
@@ -275,9 +278,10 @@ class AB_Value:
 
 # wrapper for state used in alpha-beta
 class AB_State:
-   def __init__(self, boardState, currPlayer):
+   def __init__(self, boardState, currPlayer, originalPlayer):
       self.board = boardState
       self.player = currPlayer
+      self.origPlayer = originalPlayer
       
 class Move:
     def __init__(self, start, end, jump=False):
