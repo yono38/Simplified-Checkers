@@ -385,7 +385,8 @@ class Board:
                 temp = Move(cell, (cell[0]+next+next, cell[1]-2), True)
                 temp.jumpOver = [(cell[0]+next,cell[1]-1)]
                 # can has double jump?
-                if (cell[0]+next != 0 and cell[0]+next != BOARD_SIZE-1):
+                helper = temp.end
+                if (temp.end[0]+next > 0 and temp.end[0]+next < BOARD_SIZE-1):
                 	#enemy in top left of new square?
                 	if (temp.end[1]>1 and self.boardState[temp.end[0]+next][temp.end[1]-1]==(1-player)):
                 		test = self.checkJump(temp.end, True, player)
@@ -410,7 +411,7 @@ class Board:
                 temp = Move(cell, (cell[0]+next+next, cell[1]+2), True)
                 temp.jumpOver = [(cell[0]+next,cell[1]+1)]
                 # can has double jump?
-                if (cell[0]+next != 0 and cell[0]+next != BOARD_SIZE-1):
+                if (temp.end[0]+next > 0 and temp.end[0]+next < BOARD_SIZE-1):
                 	#enemy in top left of new square?
                 	if (temp.end[1]>1 and self.boardState[temp.end[0]+next][temp.end[1]-1]==(1-player)):
                 		test = self.checkJump(temp.end, True, player)
@@ -486,7 +487,13 @@ class Board:
 ##        ]            
 
 def main():
-    test = Game()
+    print("Play as: ")
+    print("(0) Black")
+    print("(1) White")
+    playr = int(input("Enter 0 or 1:"))
+    while not (playr == 0 or playr == 1):
+        playr = int(input("Invalid Choice, please try again: "))
+    test = Game(playr)
     test.run()
     
 main()
